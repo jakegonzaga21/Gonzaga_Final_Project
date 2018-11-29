@@ -1,12 +1,26 @@
-# this file was created by Chris Cozort
-# Sources: goo.gl/2KMivS 
+# this file was created by Jacob Gonzaga
+# Sources: goo.gl/2KMivS and Chris Cozort
 # now available in github
 
 '''
 Curious, Creative, Tenacious(requires hopefulness)
 
-Game ideas:
-Walls closing in on player
+**********Gameplay ideas:
+Add more powerups such as invincibilty for a period of time, maybe shoot down mobs, and add more mobs
+
+**********Bugs
+the platforms got clumped together
+when you get launched by powerup or head jump player sometimes snaps to platform abruptly 
+happens when hitting jump during power up boost
+
+**********Gameplay fixes
+More powerup availibity 
+Was able to stretch the screen width for more visibility and oppurtunity to add stuff
+
+**********Features
+Varied powerups and a carrot
+Wider screen dimension
+
 
 '''
 import pygame as pg
@@ -47,15 +61,18 @@ class Game:
                 self.highscore = 0
                 print("exception")
         # load spritesheet image
-        self.spritesheet = Spritesheet(path.join(img_dir, SPRITESHEET))       
+        self.spritesheet = Spritesheet(path.join(img_dir, SPRITESHEET)) 
+        #load cloud images
+        self.cloud_images = []
+        for i in range(1,4):
+            self.cloud_images.append(pg.image.load(path.join(img_dir, 'cloud{}.png'.format(i))).convert())
         # load sounds
         # great place for creating sounds: https://www.bfxr.net/
         self.snd_dir = path.join(self.dir, 'snd')
         self.jump_sound = [pg.mixer.Sound(path.join(self.snd_dir, 'Jump18.wav')),
                             pg.mixer.Sound(path.join(self.snd_dir, 'Jump24.wav'))]
         self.boost_sound = pg.mixer.Sound(path.join(self.snd_dir, 'Jump29.wav'))
-
-                            
+        self.head_jump_sound = pg.mixer.Sound(path.join(self.snd_dir, 'Jump39.wav'))
     def new(self):
         self.score = 0
         # add all sprites to the pg group
@@ -64,9 +81,13 @@ class Game:
         self.all_sprites = pg.sprite.LayeredUpdates()
         # create platforms group
         self.platforms = pg.sprite.Group()
+        # create clouds group
+        self.clouds = pg.sprite.Group()
         # add powerups
         self.powerups = pg.sprite.Group()
-        
+        # add carrots
+        self.carrotups = pg.sprite.Group()
+
         self.mob_timer = 0
         # add a player 1 to the group
         self.player = Player(self)
@@ -82,6 +103,9 @@ class Game:
             # no longer needed because we pass in Sprite lib file
             # self.all_sprites.add(p)
             # self.platforms.add(p)
+        for i in range(8):
+            c = Cloud(self)
+            c.rect.y += 500
         # load music
         pg.mixer.music.load(path.join(self.snd_dir, 'happy.ogg'))
         # call the run method
@@ -106,13 +130,17 @@ class Game:
         if now - self.mob_timer > 5000 + random.choice([-1000, -500, 0, 500, 1000]):
             self.mob_timer = now
             Mob(self)
-        # check for mob collisions
-        mob_hits = pg.sprite.spritecollide(self.player, self.mobs, False)
+        ##### check for mob collisions ######
+        # now using collision mask to determine collisions
+        # can use rectangle collisions here first if we encounter performance issues
+        mob_hits = pg.sprite.spritecollide(self.player, self.mobs, False, pg.sprite.collide_mask)
         if mob_hits:
+            # can use mask collide here if mob count gets too high and creates performance issues
             if self.player.pos.y - 35 < mob_hits[0].rect_top:
                 print("hit top")
                 print("player is " + str(self.player.pos.y))
                 print("mob is " + str(mob_hits[0].rect_top))
+                self.head_jump_sound.play()
                 self.player.vel.y = -BOOST_POWER
             else:
                 print("player is " + str(self.player.pos.y))
@@ -135,10 +163,18 @@ class Game:
                         self.player.pos.y = find_lowest.rect.top
                         self.player.vel.y = 0
                         self.player.jumping = False
-                # scroll plats with player
+                
+        # if player reaches top 1/4 of screen...
         if self.player.rect.top <= HEIGHT / 4:
-            # creates slight scroll at the top based on player y velocity
+            # spawn a cloud
+            if randrange(100) < 13:
+                Cloud(self)
+            # set player location based on velocity
             self.player.pos.y += max(abs(self.player.vel.y), 2)
+            for cloud in self.clouds:
+                cloud.rect.y += max(abs(self.player.vel.y / randrange(2,10)), 2)
+            # creates slight scroll at the top based on player y velocity
+            # scroll plats with player
             
             for mob in self.mobs:
                 # creates slight scroll based on player y velocity
@@ -156,20 +192,29 @@ class Game:
                 self.boost_sound.play()
                 self.player.vel.y = -BOOST_POWER
                 self.player.jumping = False
+        # if player hits a carrot
+        carrot_hits = pg.sprite.spritecollide(self.player, self.carrotups, True)
+        for carrot in carrot_hits:
+            if carrot.type == 'carrot':
+                self.boost_sound.play()
+                self.player.vel.y = -BOOST_POWER
+                self.player.jumping = False
         
         # Die!
         if self.player.rect.bottom > HEIGHT:
+            '''make all sprites fall up when player falls'''
             for sprite in self.all_sprites:
                 sprite.rect.y -= max(self.player.vel.y, 10)
-                if sprite.rect.bottom < 0:
+                '''get rid of sprites as they fall up'''
+                if sprite.rect.bottom < -25:
                     sprite.kill()
         if len(self.platforms) == 0:
             self.playing = False
         # generate new random platforms
-        while len(self.platforms) < 6:
-            width = random.randrange(50, 100)
-            ''' removed widths and height params to allow for sprites'''
-            # changed due to passing into groups through sprites lib file
+        while len(self.platforms) < 15   :
+            width = random.randrange(50, 950)
+            ''' removed widths and height params to allow for sprites '''
+            """ changed due to passing into groups through sprites lib file """
             # p = Platform(self, random.randrange(0,WIDTH-width), 
             #                 random.randrange(-75, -30))
             Platform(self, random.randrange(0,WIDTH-width), 
@@ -187,12 +232,12 @@ class Game:
                         self.player.jump()
                 if event.type == pg.KEYUP:
                     if event.key == pg.K_SPACE:
-                        # cuts the jump short if the space bar is released
+                        """ # cuts the jump short if the space bar is released """
                         self.player.jump_cut()
     def draw(self):
         self.screen.fill(SKY_BLUE)
         self.all_sprites.draw(self.screen)
-        # not needed now that we're using LayeredUpdates
+        """ # not needed now that we're using LayeredUpdates """
         # self.screen.blit(self.player.image, self.player.rect)
         self.draw_text(str(self.score), 22, WHITE, WIDTH / 2, 15)
         # double buffering - renders a frame "behind" the displayed frame
@@ -208,7 +253,7 @@ class Game:
                 if event.type ==pg.KEYUP:
                     waiting = False
     def show_start_screen(self):
-        # game splash screen
+        """ # game splash screen """
         self.screen.fill(BLACK)
         self.draw_text(TITLE, 48, WHITE, WIDTH/2, HEIGHT/4)
         self.draw_text("WASD to move, Space to jump", 22, WHITE, WIDTH/2, HEIGHT/2)
@@ -217,7 +262,7 @@ class Game:
         pg.display.flip()
         self.wait_for_key()
     def show_go_screen(self):
-        # game splash screen
+        """ # game splash screen """
         if not self.running:
             print("not running...")
             return
