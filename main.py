@@ -12,6 +12,7 @@ Add more powerups such as invincibilty for a period of time, maybe shoot down mo
 the platforms got clumped together
 when you get launched by powerup or head jump player sometimes snaps to platform abruptly 
 happens when hitting jump during power up boost
+Weren't enough platforms to jump on
 
 **********Gameplay fixes
 More powerup availibity 
@@ -20,7 +21,7 @@ Was able to stretch the screen width for more visibility and oppurtunity to add 
 **********Features
 Varied powerups and a carrot
 Wider screen dimension
-
+Can shoot carrots
 
 '''
 import pygame as pg
@@ -41,6 +42,7 @@ class Game:
         self.clock = pg.time.Clock()
         self.running = True
         self.font_name = pg.font.match_font(FONT_NAME)
+        self.start_ticks=pg.time.get_ticks()
         self.load_data()
     def load_data(self):
         print("load data is called...")
@@ -75,6 +77,7 @@ class Game:
         self.head_jump_sound = pg.mixer.Sound(path.join(self.snd_dir, 'Jump39.wav'))
     def new(self):
         self.score = 0
+        self.carrot_pow = 0
         # add all sprites to the pg group
         # below no longer needed - using LayeredUpdate group
         # self.all_sprites = pg.sprite.Group()
@@ -85,6 +88,8 @@ class Game:
         self.clouds = pg.sprite.Group()
         # add powerups
         self.powerups = pg.sprite.Group()
+        # add speed powerups
+        self.speedups = pg.sprite.Group()
         # add carrots
         self.carrotups = pg.sprite.Group()
 
@@ -127,7 +132,7 @@ class Game:
         
         # shall we spawn a mob?
         now = pg.time.get_ticks()
-        if now - self.mob_timer > 5000 + random.choice([-1000, -500, 0, 500, 1000]):
+        if now - self.mob_timer > 3000 + random.choice([-1000, -500, 0, 500, 1000]):
             self.mob_timer = now
             Mob(self)
         ##### check for mob collisions ######
@@ -142,6 +147,7 @@ class Game:
                 print("mob is " + str(mob_hits[0].rect_top))
                 self.head_jump_sound.play()
                 self.player.vel.y = -BOOST_POWER
+
             else:
                 print("player is " + str(self.player.pos.y))
                 print("mob is " + str(mob_hits[0].rect_top))
@@ -185,21 +191,41 @@ class Game:
                 if plat.rect.top >= HEIGHT + 40:
                     plat.kill()
                     self.score += 10
-        # if player hits a power up
+        # if player hits a   power up
         pow_hits = pg.sprite.spritecollide(self.player, self.powerups, True)
         for pow in pow_hits:
             if pow.type == 'boost':
                 self.boost_sound.play()
                 self.player.vel.y = -BOOST_POWER
                 self.player.jumping = False
+        speed_hits = pg.sprite.spritecollide(self.player, self.speedups, True)
+        # powerup that makes you fast
+        self.speed = True
+        for speed in speed_hits:
+            if speed.type == 'speed':
+                self.boost_sound.play() 
+                print(self.player.p_acc)
+                self.player.p_acc += 0.25
+
+                print(self.player.p_acc)
+                print("yeeeeeeeeeeee")
+                #print(str(self.acc) + "is the acceleration")
+                self.speed = True
+    
+            
+        # adding timer from Bryce  
+        if self.speed == True:
+            self.seconds=(pg.time.get_ticks()-self.start_ticks)/1000
+            self.intsecs = int(round(self.seconds))
+            # print("timer is true")
+        if self.seconds > 30:
+            self.speed = False
+            self.start_ticks = pg.time.get_ticks()
+            print("timer is false")
         # if player hits a carrot
-        carrot_hits = pg.sprite.spritecollide(self.player, self.carrotups, True)
-        for carrot in carrot_hits:
-            if carrot.type == 'carrot':
-                self.boost_sound.play()
-                self.player.vel.y = -BOOST_POWER
-                self.player.jumping = False
-        
+        pg.sprite.groupcollide(self.mobs, self.carrotups, True, True)
+
+
         # Die!
         if self.player.rect.bottom > HEIGHT:
             '''make all sprites fall up when player falls'''
@@ -211,14 +237,14 @@ class Game:
         if len(self.platforms) == 0:
             self.playing = False
         # generate new random platforms
-        while len(self.platforms) < 15   :
-            width = random.randrange(50, 950)
+        while len(self.platforms) < 25   :
+            width = random.randrange(100, 900)
             ''' removed widths and height params to allow for sprites '''
             """ changed due to passing into groups through sprites lib file """
             # p = Platform(self, random.randrange(0,WIDTH-width), 
             #                 random.randrange(-75, -30))
             Platform(self, random.randrange(0,WIDTH-width), 
-                            random.randrange(-75, -30))
+                            random.randrange(-200, -30))
             # self.platforms.add(p)
             # self.all_sprites.add(p)
     def events(self):
@@ -230,6 +256,10 @@ class Game:
                 if event.type == pg.KEYDOWN:
                     if event.key == pg.K_SPACE:
                         self.player.jump()
+                if event.type == pg.KEYDOWN:
+                   if event.key == pg.K_m:
+                       Carrot(self, self.player.rect.centerx, self.player.rect.centery)   
+                       self.carrotups.update()
                 if event.type == pg.KEYUP:
                     if event.key == pg.K_SPACE:
                         """ # cuts the jump short if the space bar is released """
@@ -256,7 +286,7 @@ class Game:
         """ # game splash screen """
         self.screen.fill(BLACK)
         self.draw_text(TITLE, 48, WHITE, WIDTH/2, HEIGHT/4)
-        self.draw_text("WASD to move, Space to jump", 22, WHITE, WIDTH/2, HEIGHT/2)
+        self.draw_text("WASD to move, Space to jump, M to shoot", 22, WHITE, WIDTH/2, HEIGHT/2)
         self.draw_text("Press any key to play...", 22, WHITE, WIDTH / 2, HEIGHT * 3/4)
         self.draw_text("High score " + str(self.highscore), 22, WHITE, WIDTH / 2, 15)
         pg.display.flip()
@@ -268,12 +298,12 @@ class Game:
             return
         self.screen.fill(BLACK)
         self.draw_text(TITLE, 48, WHITE, WIDTH/2, HEIGHT/4)
-        self.draw_text("WASD to move, Space to jump", 22, WHITE, WIDTH/2, HEIGHT/2)
+        self.draw_text("WASD to move, Space to jump, M to shoot", 22, WHITE, WIDTH/2, HEIGHT/2)
         self.draw_text("Press any key to play...", 22, WHITE, WIDTH / 2, HEIGHT * 3/4)
         self.draw_text("High score " + str(self.highscore), 22, WHITE, WIDTH / 2, HEIGHT/2 + 40)
         if self.score > self.highscore:
             self.highscore = self.score
-            self.draw_text("new high score!", 22, WHITE, WIDTH / 2, HEIGHT/2 + 60)
+            self.draw_text("You got a New High Score!!!", 22, WHITE, WIDTH / 2, HEIGHT/2 + 60)
             with open(path.join(self.dir, HS_FILE), 'w') as f:
                 f.write(str(self.score))
 

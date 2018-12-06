@@ -10,6 +10,7 @@ from pygame.sprite import Sprite
 import random
 from random import randint, randrange, choice
 from settings import *
+from os import path
 
 vec = pg.math.Vector2
 class Spritesheet:
@@ -34,6 +35,7 @@ class Player(Sprite):
         self.current_frame = 0
         self.last_update = 0
         self.load_images()
+        self.p_acc = 0.5
         # self.image = pg.Surface((30,40))
         # self.image = self.game.spritesheet.get_image(614,1063,120,191)
         self.image = self.standing_frames[0]
@@ -46,6 +48,9 @@ class Player(Sprite):
         self.acc = vec(0, 0)
         print("adding vecs " + str(self.vel + self.acc))
     def load_images(self):
+        self.dir = path.dirname(__file__)
+        img_dir = path.join(self.dir, 'img')
+        #  pg.image.load(path.join(img_dir, 'Idle (1).png'))  -- for changing sprite
         self.standing_frames = [self.game.spritesheet.get_image(690, 406, 120, 201),
                                 self.game.spritesheet.get_image(614, 1063, 120, 191)
                                 ]
@@ -69,9 +74,9 @@ class Player(Sprite):
 
         keys = pg.key.get_pressed()
         if keys[pg.K_a]:
-            self.acc.x =  -PLAYER_ACC
+            self.acc.x =  -self.p_acc
         if keys[pg.K_d]:
-            self.acc.x = PLAYER_ACC
+            self.acc.x = self.p_acc
         # set player friction
         self.acc.x += self.vel.x * PLAYER_FRICTION
         # equations of motion
@@ -188,27 +193,29 @@ class Platform(Sprite):
         self.rect.y = y
         if random.randrange(100) < POW_SPAWN_PCT:
             Pow(self.game, self)
-        if random.randrange(100) < POW_SPAWN_PCT:
-            Carrot(self.game, self)
+        if random.randrange(100) < SPEED_SPAWN_PCT:
+            Speed(self.game, self)
+
 class Carrot(Sprite):
-    def __init__(self, game, plat):
+    def __init__(self, game, playerPosX, playerPosY):
         # allows layering in LayeredUpdates sprite group
-        self._layer = POW_LAYER
+        self._layer = MOB_LAYER
         # add a groups property where we can pass all instances of this object into game groups
         self.groups = game.all_sprites, game.carrotups
         Sprite.__init__(self, self.groups)
         self.game = game
-        self.plat = plat
         self.type = random.choice(['carrot'])
+        self.image = pg.Surface((78,70))
         self.image = self.game.spritesheet.get_image(820, 1733, 78, 70)
         self.image.set_colorkey(BLACK)
         self.rect = self.image.get_rect()
-        self.rect.centerx = self.plat.rect.centerx
-        self.rect.bottom = self.plat.rect.top - 5
+        self.rect.centerx = playerPosX
+        self.rect.bottom = playerPosY + 5
+        self.image = pg.transform.rotate(self.image, randint(0,360))
     def update(self):
-        self.rect.bottom = self.plat.rect.top - 5
+        self.rect.y += -10
         # checks to see if plat is in the game's platforms group so we can kill the powerup instance
-        if not self.game.platforms.has(self.plat):
+        if self.rect.top > WIDTH + 100:
             self.kill()
 class Pow(Sprite):
     def __init__(self, game, plat):
@@ -221,6 +228,26 @@ class Pow(Sprite):
         self.plat = plat
         self.type = random.choice(['boost'])
         self.image = self.game.spritesheet.get_image(820, 1805, 71, 70)
+        self.image.set_colorkey(BLACK)
+        self.rect = self.image.get_rect()
+        self.rect.centerx = self.plat.rect.centerx
+        self.rect.bottom = self.plat.rect.top - 5
+    def update(self):
+        self.rect.bottom = self.plat.rect.top - 5
+        # checks to see if plat is in the game's platforms group so we can kill the powerup instance
+        if not self.game.platforms.has(self.plat):
+            self.kill()
+class Speed(Sprite):
+    def __init__(self, game, plat):
+        # allows layering in LayeredUpdates sprite group
+        self._layer = POW_LAYER
+        # add a groups property where we can pass all instances of this object into game groups
+        self.groups = game.all_sprites, game.speedups
+        Sprite.__init__(self, self.groups)
+        self.game = game
+        self.plat = plat
+        self.type = random.choice(['speed'])
+        self.image = self.game.spritesheet.get_image(814, 1661, 78, 70)
         self.image.set_colorkey(BLACK)
         self.rect = self.image.get_rect()
         self.rect.centerx = self.plat.rect.centerx
