@@ -158,7 +158,9 @@ class Cloud(Sprite):
         self.groups = game.all_sprites, game.clouds
         Sprite.__init__(self, self.groups)
         self.game = game
-        self.image = choice(self.game.cloud_images)
+        # changed cloud images to the ones provided in the spritesheet
+        self.image = self.game.spritesheet.get_image(0, 1152, 260, 134) 
+        # choice(self.game.cloud_images)
         self.image.set_colorkey(BLACK)
         self.rect = self.image.get_rect()
         scale = randrange (50, 101) / 100
@@ -174,16 +176,44 @@ class Cloud(Sprite):
         if self.rect.x > WIDTH:
             self.rect.x = -self.rect.width
 class Platform(Sprite):
-    def __init__(self, game, x, y):
+    def __init__(self, game, zone, x, y):
         # allows layering in LayeredUpdates sprite group
         self._layer = PLATFORM_LAYER
         # add Platforms to game groups when instantiated
         self.groups = game.all_sprites, game.platforms
         Sprite.__init__(self, self.groups)
         self.game = game
-        images = [self.game.spritesheet.get_image(0, 288, 380, 94), 
+        # images of grass platform
+        imagesGrass = [self.game.spritesheet.get_image(0, 288, 380, 94), 
                   self.game.spritesheet.get_image(213, 1662, 201, 100)]
-        self.image = random.choice(images)
+        # images of wood platform
+        imagesWood = [self.game.spritesheet.get_image(0, 960, 380, 94),
+                self.game.spritesheet.get_image(218, 1558, 200, 100)]
+        # images of cake platform
+        imagesCake = [self.game.spritesheet.get_image(0, 576, 380, 94),
+                self.game.spritesheet.get_image(218, 1456, 200, 100)]
+        # images of sand platform
+        imagesSand = [self.game.spritesheet.get_image(0, 672, 380, 94),
+                self.game.spritesheet.get_image(208, 1879, 201, 100)]
+        # images of stone platform
+        imagesStone = [self.game.spritesheet.get_image(0, 96, 380, 94),
+                self.game.spritesheet.get_image(382, 408, 200, 100)]
+        # images of snow platform
+        imagesSnow = [self.game.spritesheet.get_image(0, 768, 380, 94),
+                self.game.spritesheet.get_image(213, 1764, 201, 100)]
+        if zone == "grass":
+            self.image = random.choice(imagesGrass)
+        if zone == "wood":
+            self.image = random.choice(imagesWood)
+        if zone == "cake":
+            self.image = random.choice(imagesCake)
+        if zone == "sand":
+            self.image = random.choice(imagesSand)
+        if zone == "snow":
+            self.image = random.choice(imagesSnow)
+        if zone == "stone":
+            self.image = random.choice(imagesStone)
+   
         self.image.set_colorkey(BLACK)
         '''leftovers from random rectangles before images'''
         # self.image = pg.Surface((w,h))
@@ -191,11 +221,19 @@ class Platform(Sprite):
         self.rect = self.image.get_rect()
         self.rect.x = x
         self.rect.y = y
+        # this randomly spawns the powerups and trees and mushrooms
         if random.randrange(100) < POW_SPAWN_PCT:
             Pow(self.game, self)
         if random.randrange(100) < SPEED_SPAWN_PCT:
             Speed(self.game, self)
+        if random.randrange(100) < TREE_SPAWN_PCT:
+            Trees(self.game, self)
+        if random.randrange(100) < MUSH_SPAWN_PCT:
+            Mushrooms(self.game, self)
+        if random.randrange(100) < REDMUSH_SPAWN_PCT:
+            Redmushrooms(self.game, self)
 
+# class for the carrot shooting sprite
 class Carrot(Sprite):
     def __init__(self, game, playerPosX, playerPosY):
         # allows layering in LayeredUpdates sprite group
@@ -217,6 +255,66 @@ class Carrot(Sprite):
         # checks to see if plat is in the game's platforms group so we can kill the powerup instance
         if self.rect.top > WIDTH + 100:
             self.kill()
+# class for the cacti
+class Trees(Sprite):
+    def __init__(self, game, plat):
+        # allows layering in LayeredUpdates sprite group
+        self._layer = POW_LAYER
+        # add a groups property where we can pass all instances of this object into game groups
+        self.groups = game.all_sprites, game.tree
+        Sprite.__init__(self, self.groups)
+        self.game = game
+        self.plat = plat
+        self.image = self.game.spritesheet.get_image(707, 134, 117, 160)
+        self.image.set_colorkey(BLACK)
+        self.rect = self.image.get_rect()
+        self.rect.centerx = self.plat.rect.centerx
+        self.rect.bottom = self.plat.rect.top 
+    def update(self):
+        self.rect.bottom = self.plat.rect.top 
+        # checks to see if plat is in the game's platforms group so we can kill the powerup instance
+        if not self.game.platforms.has(self.plat):
+            self.kill()
+# class for the normal mushrooms
+class Mushrooms(Sprite):
+    def __init__(self, game, plat):
+        # allows layering in LayeredUpdates sprite group
+        self._layer = POW_LAYER
+        # add a groups property where we can pass all instances of this object into game groups
+        self.groups = game.all_sprites, game.mush
+        Sprite.__init__(self, self.groups)
+        self.game = game
+        self.plat = plat
+        self.image = self.game.spritesheet.get_image(812, 453, 81, 99)
+        self.image.set_colorkey(BLACK)
+        self.rect = self.image.get_rect()
+        self.rect.centerx = self.plat.rect.centerx
+        self.rect.bottom = self.plat.rect.top 
+    def update(self):
+        self.rect.bottom = self.plat.rect.top 
+        # checks to see if plat is in the game's platforms group so we can kill the powerup instance
+        if not self.game.platforms.has(self.plat):
+            self.kill()
+# class for the red mushrooms
+class Redmushrooms(Sprite):
+    def __init__(self, game, plat):
+        # allows layering in LayeredUpdates sprite group
+        self._layer = POW_LAYER
+        # add a groups property where we can pass all instances of this object into game groups
+        self.groups = game.all_sprites, game.redmush
+        Sprite.__init__(self, self.groups)
+        self.game = game
+        self.plat = plat
+        self.image = self.game.spritesheet.get_image(814, 1574, 81, 85)
+        self.image.set_colorkey(BLACK)
+        self.rect = self.image.get_rect()
+        self.rect.centerx = self.plat.rect.centerx
+        self.rect.bottom = self.plat.rect.top 
+    def update(self):
+        self.rect.bottom = self.plat.rect.top 
+        # checks to see if plat is in the game's platforms group so we can kill the powerup instance
+        if not self.game.platforms.has(self.plat):
+            self.kill()
 class Pow(Sprite):
     def __init__(self, game, plat):
         # allows layering in LayeredUpdates sprite group
@@ -237,6 +335,7 @@ class Pow(Sprite):
         # checks to see if plat is in the game's platforms group so we can kill the powerup instance
         if not self.game.platforms.has(self.plat):
             self.kill()
+# class for the powerup of speed that makes your acceleration go up
 class Speed(Sprite):
     def __init__(self, game, plat):
         # allows layering in LayeredUpdates sprite group
@@ -257,6 +356,7 @@ class Speed(Sprite):
         # checks to see if plat is in the game's platforms group so we can kill the powerup instance
         if not self.game.platforms.has(self.plat):
             self.kill()
+# mob class
 class Mob(Sprite):
     def __init__(self, game):
         # allows layering in LayeredUpdates sprite group
@@ -264,6 +364,7 @@ class Mob(Sprite):
         # add a groups property where we can pass all instances of this object into game groups
         self.groups = game.all_sprites, game.mobs
         Sprite.__init__(self, self.groups)
+        self.vel = vec(0, 0)
         self.game = game
         self.image_up = self.game.spritesheet.get_image(566, 510, 122, 139)
         self.image_up.set_colorkey(BLACK)
@@ -291,6 +392,60 @@ class Mob(Sprite):
             self.image = self.image_up
         else:
             self.image = self.image_down
+        self.rect = self.image.get_rect()
+        self.mask = pg.mask.from_surface(self.image)
+        self.rect.center = center
+        self.rect_top = self.rect.top
+        self.rect.y += self.vy
+        if self.rect.left > WIDTH + 100 or self.rect.right < -100:
+            self.kill()
+# new mob class for the flying mobs
+class Flyingmob(Sprite):
+    def __init__(self, game):
+        # allows layering in LayeredUpdates sprite group
+        self._layer = MOB_LAYER
+        # add a groups property where we can pass all instances of this object into game groups
+        self.groups = game.all_sprites, game.flyingmobs
+        Sprite.__init__(self, self.groups)
+        self.game = game
+        self.image1 = self.game.spritesheet.get_image(382, 635, 174, 126)
+        self.image1.set_colorkey(BLACK)
+        self.image2 = self.game.spritesheet.get_image(0, 1879, 206, 107)
+        self.image2.set_colorkey(BLACK)
+        self.image3 = self.game.spritesheet.get_image(382, 1559, 216, 101)
+        self.image3.set_colorkey(BLACK)
+        self.image4 = self.game.spritesheet.get_image(0, 1456, 216, 101)
+        self.image4.set_colorkey(BLACK)
+        self.image5 = self.game.spritesheet.get_image(382, 510, 182, 123)
+        self.image5.set_colorkey(BLACK)
+        self.image = self.image1
+        self.image.set_colorkey(BLACK)
+        self.rect = self.image.get_rect()
+        self.rect.centerx = choice([-100, WIDTH + 100])
+        self.rect_top = self.rect.top
+        self.vx = randrange(1, 4)
+        if self.rect.centerx > WIDTH:
+            self.vx *= -1
+        self.rect.y = randrange(HEIGHT//1.5)
+        self.vy = 0
+        self.dy = 0.5
+    def update(self):
+        self.rect.x += self.vx
+        self.vy += self.dy
+        self.rect_top = self.rect.top
+        if self.vy > 3 or  self.vy < -3:
+            self.dy *= -1
+        center = self.rect.center
+        if self.dy < 0:
+            self.image = self.image1
+        elif self.dy < 0.2:
+            self.image = self.image2
+        elif self.dy < 0.4:
+            self.image = self.image3
+        elif self.dy < 0.6:
+            self.image = self.image4
+        else:
+            self.image = self.image5
         self.rect = self.image.get_rect()
         self.mask = pg.mask.from_surface(self.image)
         self.rect.center = center

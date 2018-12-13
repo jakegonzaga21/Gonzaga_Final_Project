@@ -3,25 +3,33 @@
 # now available in github
 
 '''
-Curious, Creative, Tenacious(requires hopefulness)
 
 **********Gameplay ideas:
-Add more powerups such as invincibilty for a period of time, maybe shoot down mobs, and add more mobs
+Add more powerups such as speed 
+shoot down mobs
+add more mobs
+make the screen bigger
+added a way to change the platforms based on score
 
 **********Bugs
 the platforms got clumped together
 when you get launched by powerup or head jump player sometimes snaps to platform abruptly 
 happens when hitting jump during power up boost
 Weren't enough platforms to jump on
+the speed powerup wasn't working
+the sprites would not show up 
 
 **********Gameplay fixes
 More powerup availibity 
+fixed speed powerup
 Was able to stretch the screen width for more visibility and oppurtunity to add stuff
 
 **********Features
-Varied powerups and a carrot
+Varied powerups such as speed
 Wider screen dimension
 Can shoot carrots
+change the platforms based on score
+
 
 '''
 import pygame as pg
@@ -77,7 +85,12 @@ class Game:
         self.head_jump_sound = pg.mixer.Sound(path.join(self.snd_dir, 'Jump39.wav'))
     def new(self):
         self.score = 0
-        self.carrot_pow = 0
+        # this initialiazes the variable for what zone the platforms are in, the first zone is grass
+        self.zone = "grass"
+        # this makes sure when you pass the last zone it sets the zone back to grass
+        self.zoneRotation = 0
+        # this is the base number to check when to change the zone based on score
+        self.changeinScore = 50
         # add all sprites to the pg group
         # below no longer needed - using LayeredUpdate group
         # self.all_sprites = pg.sprite.Group()
@@ -92,19 +105,26 @@ class Game:
         self.speedups = pg.sprite.Group()
         # add carrots
         self.carrotups = pg.sprite.Group()
+        # add trees, and mushrooms
+        self.tree = pg.sprite.Group()
+        self.mush = pg.sprite.Group()
+        self.redmush = pg.sprite.Group()
+        # creates which platform or zone the player is in
+        self.zone = "grass"
 
         self.mob_timer = 0
         # add a player 1 to the group
         self.player = Player(self)
-        # add mobs
+        # add mobs including new flying mobs
         self.mobs = pg.sprite.Group()
+        self.flyingmobs = pg.sprite.Group()
         # no longer needed after passing self.groups in Sprites library file
         # self.all_sprites.add(self.player)
         # instantiate new platform 
         for plat in PLATFORM_LIST:
             # no longer need to assign to variable because we're passing self.groups in Sprite library
             # p = Platform(self, *plat)
-            Platform(self, *plat)
+            Platform(self, self.zone, *plat)
             # no longer needed because we pass in Sprite lib file
             # self.all_sprites.add(p)
             # self.platforms.add(p)
@@ -129,16 +149,41 @@ class Game:
         pg.mixer.music.fadeout(1000)
     def update(self):
         self.all_sprites.update()
-        
+        # changes the images of platforms based on score
+        if self.changeinScore < self.score:
+            self.changeinScore = self.score +1000
+            print(self.changeinScore)
+            self.zoneRotation += 1
+            # the different zones that the platforms can be
+            if self.zoneRotation == 0:
+                self.zone = "grass"
+            elif self.zoneRotation == 1:
+                self.zone = "wood"
+            elif self.zoneRotation == 2:
+                self.zone = "cake"
+            elif self.zoneRotation == 3:
+                self.zone = "sand"
+            elif self.zoneRotation == 4:
+                self.zone = "stone"
+            elif self.zoneRotation == 5:
+                self.zone = "snow"
+            else:
+                self.zoneRotation = 0
         # shall we spawn a mob?
         now = pg.time.get_ticks()
         if now - self.mob_timer > 3000 + random.choice([-1000, -500, 0, 500, 1000]):
             self.mob_timer = now
             Mob(self)
+        now = pg.time.get_ticks()
+        # this spawns the flying mobs
+        if now - self.mob_timer > 3000 + random.choice([-1000, -500, 0, 500, 1000]):
+            self.mob_timer = now
+            Flyingmob(self)
         ##### check for mob collisions ######
         # now using collision mask to determine collisions
         # can use rectangle collisions here first if we encounter performance issues
         mob_hits = pg.sprite.spritecollide(self.player, self.mobs, False, pg.sprite.collide_mask)
+        flyingmob_hits = pg.sprite.spritecollide(self.player, self.flyingmobs, False, pg.sprite.collide_mask)
         if mob_hits:
             # can use mask collide here if mob count gets too high and creates performance issues
             if self.player.pos.y - 35 < mob_hits[0].rect_top:
@@ -146,11 +191,25 @@ class Game:
                 print("player is " + str(self.player.pos.y))
                 print("mob is " + str(mob_hits[0].rect_top))
                 self.head_jump_sound.play()
-                self.player.vel.y = -BOOST_POWER
-
+                self.player.vel.y = -BOOST_POWER 
+                
+                self.score += 100
             else:
                 print("player is " + str(self.player.pos.y))
                 print("mob is " + str(mob_hits[0].rect_top))
+                self.playing = False
+        if flyingmob_hits:
+            # checks if there is a collison between player and mob 
+            if self.player.pos.y - 35 < flyingmob_hits[0].rect_top:
+                print("hit top")
+                print("player is " + str(self.player.pos.y))
+                print("mob is " + str(flyingmob_hits[0].rect_top))
+                self.head_jump_sound.play()
+                self.player.vel.y = -BOOST_POWER + 30
+                self.score += 100
+            else:
+                print("player is " + str(self.player.pos.y))
+                print("mob is " + str(flyingmob_hits[0].rect_top))
                 self.playing = False
 
         # check to see if player can jump - if falling
@@ -185,46 +244,41 @@ class Game:
             for mob in self.mobs:
                 # creates slight scroll based on player y velocity
                 mob.rect.y += max(abs(self.player.vel.y), 2)
+            for flyingmob in self.flyingmobs:
+                # creates slight scroll based on player y velocity
+                flyingmob.rect.y += max(abs(self.player.vel.y), 2)
             for plat in self.platforms:
                 # creates slight scroll based on player y velocity
                 plat.rect.y += max(abs(self.player.vel.y), 2)
                 if plat.rect.top >= HEIGHT + 40:
                     plat.kill()
                     self.score += 10
-        # if player hits a   power up
+        # if player hits a power up
         pow_hits = pg.sprite.spritecollide(self.player, self.powerups, True)
         for pow in pow_hits:
             if pow.type == 'boost':
                 self.boost_sound.play()
                 self.player.vel.y = -BOOST_POWER
                 self.player.jumping = False
+        
+        # checks to see if the carrots the player shoots hits the mobs
+        if pg.sprite.groupcollide(self.mobs, self.carrotups, True, True):
+            self.score += 10
+        if pg.sprite.groupcollide(self.flyingmobs, self.carrotups, True, True):
+            self.score += 10
         speed_hits = pg.sprite.spritecollide(self.player, self.speedups, True)
         # powerup that makes you fast
+        # i had trouble with changing the acceleration of the player, but eventually I changed a few things in sprites
         self.speed = True
         for speed in speed_hits:
             if speed.type == 'speed':
                 self.boost_sound.play() 
                 print(self.player.p_acc)
-                self.player.p_acc += 0.25
-
+                self.player.p_acc += 0.05
                 print(self.player.p_acc)
-                print("yeeeeeeeeeeee")
-                #print(str(self.acc) + "is the acceleration")
+                print("speed is working")
                 self.speed = True
     
-            
-        # adding timer from Bryce  
-        if self.speed == True:
-            self.seconds=(pg.time.get_ticks()-self.start_ticks)/1000
-            self.intsecs = int(round(self.seconds))
-            # print("timer is true")
-        if self.seconds > 30:
-            self.speed = False
-            self.start_ticks = pg.time.get_ticks()
-            print("timer is false")
-        # if player hits a carrot
-        pg.sprite.groupcollide(self.mobs, self.carrotups, True, True)
-
 
         # Die!
         if self.player.rect.bottom > HEIGHT:
@@ -237,13 +291,13 @@ class Game:
         if len(self.platforms) == 0:
             self.playing = False
         # generate new random platforms
-        while len(self.platforms) < 25   :
+        while len(self.platforms) < 20   :
             width = random.randrange(100, 900)
             ''' removed widths and height params to allow for sprites '''
             """ changed due to passing into groups through sprites lib file """
             # p = Platform(self, random.randrange(0,WIDTH-width), 
             #                 random.randrange(-75, -30))
-            Platform(self, random.randrange(0,WIDTH-width), 
+            Platform(self, self.zone, random.randrange(0,WIDTH-width), 
                             random.randrange(-200, -30))
             # self.platforms.add(p)
             # self.all_sprites.add(p)
@@ -256,6 +310,7 @@ class Game:
                 if event.type == pg.KEYDOWN:
                     if event.key == pg.K_SPACE:
                         self.player.jump()
+                # this is for when you hit m, it will shoot carrots
                 if event.type == pg.KEYDOWN:
                    if event.key == pg.K_m:
                        Carrot(self, self.player.rect.centerx, self.player.rect.centery)   

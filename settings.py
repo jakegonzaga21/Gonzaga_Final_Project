@@ -26,7 +26,10 @@ PLAYER_JUMP = 20
 # game settings
 BOOST_POWER = 60
 POW_SPAWN_PCT = 3
-SPEED_SPAWN_PCT = 3
+SPEED_SPAWN_PCT = 10
+TREE_SPAWN_PCT = 20
+REDMUSH_SPAWN_PCT = 20
+MUSH_SPAWN_PCT = 20
 MOB_FREQ = 3
 # layers - uses numerical value in layered sprites
 PLAYER_LAYER = 2
@@ -37,13 +40,8 @@ CLOUD_LAYER = 0
 
 BARREL_OFFSET = vec(30, 10)
 # gun settings
-BULLET_IMG = 'cloud1.png'
-BULLET_SPEED = 500
-BULLET_LIFETIME = 1000
-BULLET_RATE = 150
-KICKBACK = 200
-GUN_SPREAD = 5
-BULLET_DAMAGE = 10
+
+
 
 # platform settings
 ''' old platforms from drawing rectangles'''
